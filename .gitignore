@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+../dataset/
+*.pth
+model/
+*.tar
+*.rar
+*.zip
+.DS_Store
+.vscode/
