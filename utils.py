@@ -13,7 +13,6 @@ class MoirePic(data.Dataset):
         self.picX.sort()
         self.picY.sort()
         self.pics = list(zip(self.picX, self.picY))
-        # self.pics = self.pics[:400]
         self.Len = len(self.pics)
 
         if not training:
@@ -21,10 +20,7 @@ class MoirePic(data.Dataset):
             self.Len = len(self.pics)
 
     def __getitem__(self, index):
-        tf = transforms.Compose([
-            transforms.CenterCrop(256),
-            transforms.ToTensor()
-        ])
+        tf = transforms.Compose([transforms.CenterCrop(256), transforms.ToTensor()])
 
         path_pair = self.pics[index]
         imgX, imgY = Image.open(path_pair[0]), Image.open(path_pair[1])
@@ -36,16 +32,18 @@ class MoirePic(data.Dataset):
 
 def weights_init(m):
     classname = m.__class__.__name__
-    if classname.find('Conv') != -1:
+    # just for conv layer
+    if classname.find("Conv") != -1:
         m.weight.data.normal_(mean=0.0, std=0.01)
         m.bias.data.fill_(0)
 
 
-if __name__=='__main__':
-    root = '/data_new/zxbsmk/moire/trainData'
-    # you need to clean the training set
-    input_path = os.path.join(root, 'source')
-    gt_path = os.path.join(root, 'target')
+# clean data: delete images whose W or H < 260
+# after run this code, i found it just clean 8 illegal images
+if __name__ == "__main__":
+    root = "../dataset/TIP-2018-clean/trainData"
+    input_path = os.path.join(root, "source")
+    gt_path = os.path.join(root, "target")
     input_imgs = [os.path.join(input_path, img) for img in os.listdir(input_path)]
     gt_imgs = [os.path.join(gt_path, img) for img in os.listdir(gt_path)]
     input_imgs.sort()
@@ -55,22 +53,22 @@ if __name__=='__main__':
     loop = tqdm(enumerate(input_imgs), total=len(input_imgs), leave=False)
     for idx, img in loop:
         with open(img, "rb") as f:
-            ImPar=ImageFile.Parser()
+            Impar = ImageFile.Parser()
             chunk = f.read(2048)
-            count=2048
+            count = 2048
             while chunk != "":
-                ImPar.feed(chunk)
-                if ImPar.image:
+                Impar.feed(chunk)
+                if Impar.image:
                     break
                 chunk = f.read(2048)
-                count+=2048
-            M, N = ImPar.image.size[0], ImPar.image.size[1]
+                count += 2048
+            M, N = Impar.image.size[0], Impar.image.size[1]
 
         if M < 260 or N < 260:
             os.remove(input_imgs[idx])
             os.remove(gt_imgs[idx])
             cot += 1
-        
+
         loop.set_postfix(unfit_imgs=cot)
 
     print("Done! Get %d unfit images." % cot)

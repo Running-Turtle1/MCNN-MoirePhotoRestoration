@@ -3,8 +3,7 @@
 This is an unofficial reproduction of paper *Moir´e Photo Restoration Using Multiresolution Convolutional Neural Networks*.(PyTorch)
 
 First of all, you need to prepare the whole dataset of this paper, which is around 100G.\
-~dataset download link : https://drive.google.com/drive/folders/109cAIZ0ffKLt34P7hOMKUO14j3gww2UC~ \
-another download link : https://huggingface.co/datasets/zxbsmk/TIP-2018
+Download link : https://huggingface.co/datasets/zxbsmk/TIP-2018
 
 ## Requirements
 
@@ -16,7 +15,7 @@ another download link : https://huggingface.co/datasets/zxbsmk/TIP-2018
 ## Training
 
 Before starting to train the model, you need to run a script to clean the training set as shown below.\
-All hyper-parameters follow the instructions of the paper, so you don't need to change them.W
+All hyper-parameters follow the instructions of the paper, so you don't need to change them.
 
 However, you should change the path of datasets to match your local environment.
 
