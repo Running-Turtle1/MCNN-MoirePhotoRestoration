@@ -16,9 +16,21 @@ parser.add_argument('--gpu', type=int, default=2, help='GPU ID')
 args = parser.parse_args()
 
 def psnr(img1, img2):
-    img1 = np.clip(img1, 0, 1)
-    img2 = np.clip(img2, 0, 1)
-    mse = np.mean((img1 - img2) ** 2)
+    # img1, img2: [C, H, W] numpy array, range [0, 1]
+    # 1. 转换为 Y 通道 (Matlab 标准公式)
+    # Y = 65.481/255 * R + 128.553/255 * G + 24.966/255 * B + 16/255
+    # 简化版 (OpenCV标准): Y = 0.299*R + 0.587*G + 0.114*B
+
+    def to_y(img):
+        r, g, b = img[0], img[1], img[2]
+        return 0.299 * r + 0.587 * g + 0.114 * b
+
+    img1_y = to_y(img1)
+    img2_y = to_y(img2)
+    img1_y = np.clip(img1_y, 0, 1)
+    img2_y = np.clip(img2_y, 0, 1)
+    mse = np.mean((img1_y - img2_y) ** 2)
+
     if mse == 0:
         return 100
     return 10 * math.log10(1 / mse)

@@ -1,5 +1,5 @@
 from torch import nn
-
+        
 
 class MoireCNN(nn.Module):
 
