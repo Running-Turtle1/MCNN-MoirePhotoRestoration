@@ -7,23 +7,34 @@ from tqdm import tqdm
 
 
 class MoirePic(data.Dataset):
-    def __init__(self, rootX, rootY, training=True):
+    def __init__(self, rootX, rootY, mode='train', val_split=0.1):
         self.picX = [os.path.join(rootX, img) for img in os.listdir(rootX)]
         self.picY = [os.path.join(rootY, img) for img in os.listdir(rootY)]
         self.picX.sort()
         self.picY.sort()
-        self.pics = list(zip(self.picX, self.picY))
-        self.Len = len(self.pics)
+        
+        allpics = list(zip(self.picX, self.picY))
+        total_len = len(allpics)
 
-        if not training:
-            self.pics = sample(self.pics, self.Len // 10)
-            self.Len = len(self.pics)
+        split_idx = int(total_len * (1 - val_split))
+
+        if mode == 'train':
+            self.pics = allpics[:split_idx]
+        elif mode == 'val':
+            self.pics = allpics[split_idx:]
+        elif mode == 'test':
+            self.pics = allpics
+        else:
+            raise ValueError("mode must be 'train', 'val' or 'test'")            
+        self.Len = len(self.pics)
+        self.mode = mode
+
 
     def __getitem__(self, index):
         tf = transforms.Compose([transforms.CenterCrop(256), transforms.ToTensor()])
-
         path_pair = self.pics[index]
-        imgX, imgY = Image.open(path_pair[0]), Image.open(path_pair[1])
+        imgX = Image.open(path_pair[0]).convert('RGB')
+        imgY = Image.open(path_pair[1]).convert('RGB')
         return tf(imgX), tf(imgY)
 
     def __len__(self):

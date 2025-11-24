@@ -1,5 +1,6 @@
 from torch import nn
 
+
 class MoireCNN(nn.Module):
 
     def conv_block(self, channels):

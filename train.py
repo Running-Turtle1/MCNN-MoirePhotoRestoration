@@ -52,22 +52,16 @@ logging.basicConfig(
 def train(model, train_loader, criterion, optimizer, epoch, use_gpu):
     model.train()
 
-    # loop = tqdm(enumerate(train_loader), total=len(train_loader), leave=False)
     for batch_idx, (data, target) in enumerate(train_loader):
         if use_gpu:
             data, target = data.cuda(non_blocking=True), target.cuda(non_blocking=True)
-        # After Pytorch 0.4, don't need this step 
-        # data, target = Variable(data), Variable(target)
 
-        # optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=0.00001)
         optimizer.zero_grad()
         output = model(data)
         loss = criterion(output, target)
         loss.backward()
         optimizer.step()
 
-        # loop.set_description(f'Train Epoch [{epoch}/50]')
-        # loop.set_postfix(loss = loss.item())
         if batch_idx % 100 == 0:
             logging.info(
                 "Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}".format(
@@ -75,12 +69,9 @@ def train(model, train_loader, criterion, optimizer, epoch, use_gpu):
                     batch_idx * len(data),
                     len(train_loader.dataset),
                     100.0 * batch_idx / len(train_loader),
-                    loss.data,
+                    loss.item(),
                 )
             )
-            # print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-            #     epoch, batch_idx * len(data), len(train_loader.dataset),
-            #     100. * batch_idx / len(train_loader), loss.data))
 
 
 def val(model, val_loader, epoch, use_gpu):
@@ -92,7 +83,6 @@ def val(model, val_loader, epoch, use_gpu):
     for data, target in val_loader:
         if use_gpu:
             data, target = data.cuda(non_blocking=True), target.cuda(non_blocking=True)
-        # data, target = Variable(data), Variable(target)
 
         with torch.no_grad():
             output = model(data)
@@ -110,38 +100,35 @@ def val(model, val_loader, epoch, use_gpu):
 
 
 if __name__ == "__main__":
-    dataset = MoirePic(
-        os.path.join(par.dataset, "source"), os.path.join(par.dataset, "target")
-    )
-    valdataset = MoirePic(
-        os.path.join(par.dataset, "source"), os.path.join(par.dataset, "target"), False
-    )
+    root_x = os.path.join(par.dataset, "source")
+    root_y = os.path.join(par.dataset, "target")
+
+    train_ds = MoirePic(root_x, root_y, mode='train', val_split=0.1)
+    val_ds = MoirePic(root_x, root_y, mode='val', val_split=0.1)
 
     use_gpu = torch.cuda.is_available()
     train_loader = DataLoader(
-        dataset=dataset,
+        dataset=train_ds,
         shuffle=True,
         batch_size=par.batchsize,
         num_workers=8,
         pin_memory=True,
     )
     val_loader = DataLoader(
-        dataset=valdataset,
-        shuffle=True,
+        dataset=val_ds,
+        shuffle=False,
         batch_size=par.batchsize,
         num_workers=8,
         pin_memory=True,
     )
     logging.info("loaded dataset successfully!")
-    logging.info(f"the number of training set images: {dataset.__len__()}")
+    logging.info(f"the number of training set images: {train_ds.__len__()}")
 
     model = MoireCNN()
     model.apply(weights_init)
-    # model = torch.load("moire_best.pth")
 
     if use_gpu:
         model = model.cuda()
-        # model = nn.DataParallel(model)
         logging.info("use GPU")
     else:
         print("use CPU")
@@ -149,23 +136,28 @@ if __name__ == "__main__":
     criterion = nn.MSELoss()
     lr = 0.0001
     optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=0.00001)
-
-    best_loss, last_loss = 100.0, 100.0
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=5, verbose=True)
+    best_loss = float('inf')
 
     logging.info(f"learning rate: {lr}, batch size: {par.batchsize}")
 
     for epoch in range(50):
         train(model, train_loader, criterion, optimizer, epoch, use_gpu)
         current_loss = val(model, val_loader, epoch, use_gpu)
+        scheduler.step(current_loss)
+
+        checkpoint = {
+            'epoch': epoch,
+            'model_state_dict': model.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            'loss': current_loss
+        }
+        torch.save(checkpoint, os.path.join(par.save, 'latest_checkpoint.pth'))
 
         if current_loss < best_loss:
             best_loss = current_loss
-            torch.save(model, os.path.join(par.save, "moire_best.pth"))
+            torch.save(model.state_dict(), os.path.join(par.save, 'moire_best_weights.pth'))
+            logging.info(f"Saved best model at epoch {epoch} with loss {best_loss:.6f}")
 
-        if current_loss > last_loss:
-            lr *= 0.9
-            for param_group in optimizer.param_groups:
-                param_group['lr'] = lr
-            logging.info(f"Decay learning rate to: {lr}")
 
         last_loss = current_loss
